@@ -19,7 +19,10 @@ export function LightboxGallery({ images, title }: Props) {
       return;
     }
 
-    const candidates = [images[activeIndex - 1], images[activeIndex + 1]].filter(Boolean);
+    const candidates = [images[activeIndex - 1], images[activeIndex + 1]].filter(
+      Boolean
+    ) as GalleryImage[];
+
     for (const image of candidates) {
       const preload = new Image();
       preload.src = image.full.src;
@@ -35,10 +38,14 @@ export function LightboxGallery({ images, title }: Props) {
       if (event.key === "Escape") {
         setActiveIndex(null);
       }
+
       if (event.key === "ArrowRight") {
+        setFullReady(false);
         setActiveIndex((current) => (current === null ? current : (current + 1) % images.length));
       }
+
       if (event.key === "ArrowLeft") {
+        setFullReady(false);
         setActiveIndex((current) =>
           current === null ? current : (current - 1 + images.length) % images.length
         );
@@ -53,6 +60,7 @@ export function LightboxGallery({ images, title }: Props) {
     if (activeIndex === null) {
       return "";
     }
+
     return `${activeIndex + 1} / ${images.length}`;
   }, [activeIndex, images.length]);
 
@@ -61,11 +69,12 @@ export function LightboxGallery({ images, title }: Props) {
       <section className="page-section">
         <div className="section-head">
           <div>
-            <div className="section-label">Preview images</div>
+            <div className="section-label">Preview Images</div>
             <h2>{title}</h2>
           </div>
           <div className="article-meta">详情页默认仅加载 preview</div>
         </div>
+
         <div className="photo-grid">
           {images.map((image, index) => (
             <article className="photo-panel" key={image.id}>
@@ -76,8 +85,9 @@ export function LightboxGallery({ images, title }: Props) {
                   setActiveIndex(index);
                   setFullReady(false);
                 }}
+                aria-label={`查看 ${image.alt} 原图`}
               >
-                <div className="progressive-frame">
+                <span className="progressive-frame">
                   <img
                     src={image.preview.src}
                     alt={image.alt}
@@ -85,8 +95,9 @@ export function LightboxGallery({ images, title }: Props) {
                     height={image.preview.height}
                     loading={index === 0 ? "eager" : "lazy"}
                   />
-                </div>
+                </span>
               </button>
+
               <div className="photo-panel__meta">
                 <p className="photo-panel__title">{image.caption ?? image.alt}</p>
                 <div className="article-meta">点击查看原图</div>
@@ -97,8 +108,14 @@ export function LightboxGallery({ images, title }: Props) {
       </section>
 
       {activeImage ? (
-        <div className="lightbox" role="dialog" aria-modal="true" aria-label={`${title} 原图查看`}>
-          <div className="lightbox__chrome">
+        <div
+          className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${title} 原图查看`}
+          onClick={() => setActiveIndex(null)}
+        >
+          <div className="lightbox__chrome" onClick={(event) => event.stopPropagation()}>
             <div className="lightbox__topbar">
               <div>
                 <strong>{title}</strong>
@@ -141,17 +158,31 @@ export function LightboxGallery({ images, title }: Props) {
               >
                 上一张
               </button>
+
               <div className="lightbox__hint">{activeImage.caption ?? activeImage.alt}</div>
-              <button
-                type="button"
-                className="button"
-                onClick={() => {
-                  setFullReady(false);
-                  setActiveIndex((current) => (current === null ? 0 : (current + 1) % images.length));
-                }}
-              >
-                下一张
-              </button>
+
+              <div className="lightbox__actions">
+                <a
+                  className="ghost-button"
+                  href={activeImage.full.src}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  打开原图
+                </a>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => {
+                    setFullReady(false);
+                    setActiveIndex((current) =>
+                      current === null ? 0 : (current + 1) % images.length
+                    );
+                  }}
+                >
+                  下一张
+                </button>
+              </div>
             </div>
           </div>
         </div>

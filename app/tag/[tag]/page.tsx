@@ -33,7 +33,7 @@ export default async function TagPage({ params }: Props) {
               <h2>作品</h2>
             </div>
           </div>
-          <div className="grid-3">
+          <div className="masonry-grid">
             {taggedGalleries.map((gallery) => (
               <GalleryCard key={gallery.slug} gallery={gallery} />
             ))}

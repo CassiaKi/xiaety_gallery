@@ -1,12 +1,16 @@
 import Link from "next/link";
 import type { PostEntry } from "@/lib/content";
-import { TagLink } from "./tag-link";
 
 export function PostCard({ post }: { post: PostEntry }) {
   return (
     <Link href={`/blog/${post.slug}`} className="card">
       {post.cover ? (
-        <div className="card__image">
+        <div
+          className="card__image"
+          style={{
+            aspectRatio: `${post.cover.thumb.width} / ${post.cover.thumb.height}`
+          }}
+        >
           <img
             src={post.cover.thumb.src}
             alt={post.cover.alt}
@@ -22,7 +26,9 @@ export function PostCard({ post }: { post: PostEntry }) {
         <p className="card__summary">{post.summary}</p>
         <div className="tag-row">
           {post.tags.slice(0, 3).map((tag) => (
-            <TagLink key={tag} tag={tag} />
+            <span key={tag} className="tag-pill">
+              #{tag}
+            </span>
           ))}
         </div>
       </div>

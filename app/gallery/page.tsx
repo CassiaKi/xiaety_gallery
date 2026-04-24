@@ -15,7 +15,7 @@ export default async function GalleryIndexPage() {
         <h1 className="page-title">图库</h1>
         <p className="lead">列表页只加载缩略图，点进详情页后再按需加载更高质量的预览图与原图。</p>
       </div>
-      <div className="grid-3" style={{ marginTop: 22 }}>
+      <div className="masonry-grid" style={{ marginTop: 22 }}>
         {galleries.map((gallery) => (
           <GalleryCard key={gallery.slug} gallery={gallery} />
         ))}

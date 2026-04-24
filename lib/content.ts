@@ -79,7 +79,6 @@ export type PostEntry = {
 const contentRoot = path.join(process.cwd(), "content");
 const generatedManifestPath = path.join(process.cwd(), "public", "generated", "image-manifest.json");
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".svg"]);
-const basePath = process.env.GITHUB_ACTIONS === "true" ? "/xiaety_gallery" : "";
 
 let manifestCache: Record<string, ImageManifestItem> | null = null;
 
@@ -116,14 +115,6 @@ async function readManifest() {
       { cause: error }
     );
   }
-}
-
-function withBasePath(src: string) {
-  if (!basePath || !src.startsWith("/")) {
-    return src;
-  }
-
-  return `${basePath}${src}`;
 }
 
 async function readDirectoryNames(targetPath: string) {
@@ -262,18 +253,6 @@ async function resolveImages(
 
     return {
       ...generated,
-      thumb: {
-        ...generated.thumb,
-        src: withBasePath(generated.thumb.src)
-      },
-      preview: {
-        ...generated.preview,
-        src: withBasePath(generated.preview.src)
-      },
-      full: {
-        ...generated.full,
-        src: withBasePath(generated.full.src)
-      },
       alt: image.alt ?? `${startCase(slug)} ${index + 1}`,
       caption: image.caption
     };

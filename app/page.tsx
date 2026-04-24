@@ -30,7 +30,12 @@ export default async function HomePage() {
         </div>
         {heroGallery ? (
           <Link href={`/gallery/${heroGallery.slug}`} className="hero__visual card">
-            <div className="card__image">
+            <div
+              className="card__image"
+              style={{
+                aspectRatio: `${heroGallery.cover.thumb.width} / ${heroGallery.cover.thumb.height}`
+              }}
+            >
               <img
                 src={heroGallery.cover.thumb.src}
                 alt={heroGallery.cover.alt}
@@ -64,7 +69,7 @@ export default async function HomePage() {
             查看全部
           </Link>
         </div>
-        <div className="grid-3">
+        <div className="featured-grid">
           {featured.map((gallery) => (
             <GalleryCard key={gallery.slug} gallery={gallery} />
           ))}

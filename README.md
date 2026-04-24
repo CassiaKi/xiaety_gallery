@@ -28,6 +28,8 @@ npm run build
 
 ## 最简单的发布方式
 
+详细教学文档见：[docs/CONTENT_GUIDE.md](./docs/CONTENT_GUIDE.md)
+
 ### 发图库
 
 最简单时，你只需要新建一个目录并把图片丢进去：

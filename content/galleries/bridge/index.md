@@ -7,7 +7,7 @@ tags:
   - river
   - urban
 series: 城市切片
-cover: 014030.jpg
+cover: 4099.jpg
 published: true
 ---
 
