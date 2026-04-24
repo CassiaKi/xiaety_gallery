@@ -24,24 +24,24 @@ type ImageManifestItem = {
 
 type RawImageMeta = {
   file: string;
-  alt: string;
+  alt?: string;
   caption?: string;
 };
 
 type GalleryFrontmatter = {
-  title: string;
-  date: string;
-  summary: string;
+  title?: string;
+  date?: string;
+  summary?: string;
   tags?: string[];
   series?: string;
-  cover: string;
+  cover?: string;
   published?: boolean;
 };
 
 type PostFrontmatter = {
-  title: string;
-  date: string;
-  summary: string;
+  title?: string;
+  date?: string;
+  summary?: string;
   tags?: string[];
   cover?: string;
   relatedGalleries?: string[];
@@ -78,8 +78,28 @@ export type PostEntry = {
 
 const contentRoot = path.join(process.cwd(), "content");
 const generatedManifestPath = path.join(process.cwd(), "public", "generated", "image-manifest.json");
+const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".svg"]);
+const basePath = process.env.GITHUB_ACTIONS === "true" ? "/xiaety_gallery" : "";
 
 let manifestCache: Record<string, ImageManifestItem> | null = null;
+
+function startCase(input: string) {
+  return input
+    .replace(/\.[^.]+$/, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+async function pathExists(targetPath: string) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function readManifest() {
   if (manifestCache) {
@@ -98,29 +118,123 @@ async function readManifest() {
   }
 }
 
+function withBasePath(src: string) {
+  if (!basePath || !src.startsWith("/")) {
+    return src;
+  }
+
+  return `${basePath}${src}`;
+}
+
 async function readDirectoryNames(targetPath: string) {
+  const exists = await pathExists(targetPath);
+  if (!exists) {
+    return [];
+  }
+
   const entries = await fs.readdir(targetPath, { withFileTypes: true });
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 }
 
-async function readContentFile<TFrontmatter>(baseDir: string, slug: string) {
-  const folderPath = path.join(contentRoot, baseDir, slug);
+async function readPostEntries() {
+  const postsRoot = path.join(contentRoot, "posts");
+  const exists = await pathExists(postsRoot);
+  if (!exists) {
+    return [];
+  }
+
+  const entries = await fs.readdir(postsRoot, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isDirectory() || (entry.isFile() && entry.name.endsWith(".md")))
+    .map((entry) => ({
+      slug: entry.isDirectory() ? entry.name : entry.name.replace(/\.md$/, ""),
+      kind: (entry.isDirectory() ? "directory" : "file") as "directory" | "file"
+    }));
+}
+
+async function listImageFiles(imagesDir: string) {
+  if (!(await pathExists(imagesDir))) {
+    return [];
+  }
+
+  const entries = await fs.readdir(imagesDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && imageExtensions.has(path.extname(entry.name).toLowerCase()))
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b, "en"));
+}
+
+function chooseCover(files: string[]) {
+  return files.find((file) => /cover|cov/i.test(file)) ?? files[0];
+}
+
+async function loadImagesMeta(baseDir: "galleries" | "posts", slug: string) {
+  const imagesDir = path.join(contentRoot, baseDir, slug, "images");
+  const imagesPath = path.join(contentRoot, baseDir, slug, "images.json");
+
+  if (await pathExists(imagesPath)) {
+    const raw = await fs.readFile(imagesPath, "utf8");
+    return JSON.parse(raw) as RawImageMeta[];
+  }
+
+  const files = await listImageFiles(imagesDir);
+  return files.map((file, index) => ({
+    file,
+    alt: `${startCase(slug)} ${index + 1}`,
+    caption: undefined
+  }));
+}
+
+async function readGalleryContent(slug: string) {
+  const folderPath = path.join(contentRoot, "galleries", slug);
   const markdownPath = path.join(folderPath, "index.md");
-  const imagesPath = path.join(folderPath, "images.json");
+  const folderStat = await fs.stat(folderPath);
 
-  const [markdownRaw, imagesRaw] = await Promise.all([
-    fs.readFile(markdownPath, "utf8"),
-    fs.readFile(imagesPath, "utf8")
-  ]);
+  const frontmatter: GalleryFrontmatter = {};
+  let html = "";
 
-  const parsed = matter(markdownRaw);
-  const html = await renderMarkdown(parsed.content);
+  if (await pathExists(markdownPath)) {
+    const markdownRaw = await fs.readFile(markdownPath, "utf8");
+    const parsed = matter(markdownRaw);
+    Object.assign(frontmatter, parsed.data as GalleryFrontmatter);
+    html = await renderMarkdown(parsed.content);
+  }
+
+  const imagesMeta = await loadImagesMeta("galleries", slug);
+  return {
+    frontmatter,
+    html,
+    imagesMeta,
+    defaultDate: folderStat.mtime.toISOString().slice(0, 10)
+  };
+}
+
+async function readPostContent(slug: string, kind: "directory" | "file") {
+  if (kind === "file") {
+    const markdownPath = path.join(contentRoot, "posts", `${slug}.md`);
+    const raw = await fs.readFile(markdownPath, "utf8");
+    const stat = await fs.stat(markdownPath);
+    const parsed = matter(raw);
+
+    return {
+      frontmatter: parsed.data as PostFrontmatter,
+      html: await renderMarkdown(parsed.content),
+      imagesMeta: [] as RawImageMeta[],
+      defaultDate: stat.mtime.toISOString().slice(0, 10)
+    };
+  }
+
+  const folderPath = path.join(contentRoot, "posts", slug);
+  const markdownPath = path.join(folderPath, "index.md");
+  const folderStat = await fs.stat(folderPath);
+  const raw = await fs.readFile(markdownPath, "utf8");
+  const parsed = matter(raw);
 
   return {
-    folderPath,
-    frontmatter: parsed.data as TFrontmatter,
-    html,
-    imagesMeta: JSON.parse(imagesRaw) as RawImageMeta[]
+    frontmatter: parsed.data as PostFrontmatter,
+    html: await renderMarkdown(parsed.content),
+    imagesMeta: await loadImagesMeta("posts", slug),
+    defaultDate: folderStat.mtime.toISOString().slice(0, 10)
   };
 }
 
@@ -139,7 +253,7 @@ async function resolveImages(
 ) {
   const manifest = await readManifest();
 
-  return imagesMeta.map((image) => {
+  return imagesMeta.map((image, index) => {
     const key = `${collection}/${slug}/${image.file}`;
     const generated = manifest[key];
     if (!generated) {
@@ -148,7 +262,19 @@ async function resolveImages(
 
     return {
       ...generated,
-      alt: image.alt,
+      thumb: {
+        ...generated.thumb,
+        src: withBasePath(generated.thumb.src)
+      },
+      preview: {
+        ...generated.preview,
+        src: withBasePath(generated.preview.src)
+      },
+      full: {
+        ...generated.full,
+        src: withBasePath(generated.full.src)
+      },
+      alt: image.alt ?? `${startCase(slug)} ${index + 1}`,
       caption: image.caption
     };
   });
@@ -162,25 +288,32 @@ export async function getAllGalleries() {
   const slugs = await readDirectoryNames(path.join(contentRoot, "galleries"));
   const galleries = await Promise.all(
     slugs.map(async (slug): Promise<GalleryEntry | null> => {
-      const { frontmatter, html, imagesMeta } = await readContentFile<GalleryFrontmatter>("galleries", slug);
+      const { frontmatter, html, imagesMeta, defaultDate } = await readGalleryContent(slug);
       if (!assertPublished(frontmatter.published)) {
         return null;
       }
 
       const images = await resolveImages("galleries", slug, imagesMeta);
-      const cover = images.find((image) => image.id.endsWith(`/${frontmatter.cover}`));
-      if (!cover) {
-        throw new Error(`Cover image "${frontmatter.cover}" not found for gallery "${slug}"`);
+      if (!images.length) {
+        return null;
       }
+
+      const coverFile = frontmatter.cover ?? chooseCover(imagesMeta.map((image) => image.file));
+      const cover = images.find((image) => image.id.endsWith(`/${coverFile}`));
+      if (!cover) {
+        throw new Error(`Cover image "${coverFile}" not found for gallery "${slug}"`);
+      }
+
+      const date = frontmatter.date ?? defaultDate;
 
       return {
         slug,
-        title: frontmatter.title,
-        date: frontmatter.date,
-        dateLabel: formatDate(frontmatter.date),
-        summary: frontmatter.summary,
-        tags: frontmatter.tags ?? [],
-        series: frontmatter.series,
+        title: frontmatter.title ?? startCase(slug),
+        date,
+        dateLabel: formatDate(date),
+        summary: frontmatter.summary ?? "一组新导入的图片，等待补充更完整的标题与说明。",
+        tags: frontmatter.tags ?? [slug],
+        series: frontmatter.series ?? "图像归档",
         cover,
         images,
         html
@@ -199,26 +332,27 @@ export async function getGalleryBySlug(slug: string) {
 }
 
 export async function getAllPosts() {
-  const slugs = await readDirectoryNames(path.join(contentRoot, "posts"));
+  const entries = await readPostEntries();
   const posts = await Promise.all(
-    slugs.map(async (slug): Promise<PostEntry | null> => {
-      const { frontmatter, html, imagesMeta } = await readContentFile<PostFrontmatter>("posts", slug);
+    entries.map(async ({ slug, kind }): Promise<PostEntry | null> => {
+      const { frontmatter, html, imagesMeta, defaultDate } = await readPostContent(slug, kind);
       if (!assertPublished(frontmatter.published)) {
         return null;
       }
 
-      const images = await resolveImages("posts", slug, imagesMeta);
+      const images = kind === "directory" ? await resolveImages("posts", slug, imagesMeta) : [];
       const cover = frontmatter.cover
         ? images.find((image) => image.id.endsWith(`/${frontmatter.cover}`))
         : images[0];
+      const date = frontmatter.date ?? defaultDate;
 
       return {
         slug,
-        title: frontmatter.title,
-        date: frontmatter.date,
-        dateLabel: formatDate(frontmatter.date),
-        summary: frontmatter.summary,
-        tags: frontmatter.tags ?? [],
+        title: frontmatter.title ?? startCase(slug),
+        date,
+        dateLabel: formatDate(date),
+        summary: frontmatter.summary ?? "一篇新的博客草稿，等待补充摘要。",
+        tags: frontmatter.tags ?? ["notes"],
         cover,
         images,
         html,

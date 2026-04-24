@@ -26,23 +26,80 @@ npm run build
 - 静态站输出目录：`out/`
 - 图片清单：`public/generated/image-manifest.json`
 
-## 内容目录
+## 最简单的发布方式
+
+### 发图库
+
+最简单时，你只需要新建一个目录并把图片丢进去：
+
+```text
+content/
+  galleries/
+    my-trip/
+      images/
+        001.jpg
+        002.jpg
+        003.jpg
+```
+
+现在 `index.md` 和 `images.json` 都是可选的：
+
+- 没有 `index.md`：系统会自动用目录名生成标题，并给出默认摘要
+- 没有 `images.json`：系统会自动按文件名顺序读取图片
+
+如果你想后面再细调，再补这两个文件就行。
+
+### 发博客
+
+最简单时，直接新建一个 Markdown 文件：
+
+```text
+content/
+  posts/
+    my-note.md
+```
+
+例子：
+
+```md
+---
+title: 一篇新随记
+date: 2026-04-24
+summary: 记录今天拍照和整理图库时的一些想法。
+tags:
+  - notes
+  - workflow
+published: true
+---
+
+今天把一组旧图整理进了站点里，也顺手把浏览和发布流程简化了一遍。
+```
+
+如果你需要文章带图片，也仍然可以继续用原来的目录结构：
+
+```text
+content/posts/my-post/
+  index.md
+  images.json
+  images/
+```
+
+## 完整内容结构
 
 ```text
 content/
   galleries/
     your-gallery/
-      index.md
-      images.json
+      index.md        # 可选
+      images.json     # 可选
       images/
   posts/
-    your-post/
+    your-post.md      # 最简单的博客写法
+    rich-post/
       index.md
       images.json
       images/
 ```
-
-`images.json` 负责声明图片顺序、`alt` 和说明文字，页面只消费构建后的统一图片对象，不直接拼接路径。
 
 ## Cloudflare Pages 部署
 

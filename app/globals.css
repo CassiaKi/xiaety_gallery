@@ -1,14 +1,14 @@
 :root {
-  --bg: #f5efe4;
-  --bg-strong: #e9dcc6;
-  --surface: rgba(255, 250, 242, 0.78);
-  --surface-strong: rgba(255, 249, 239, 0.96);
-  --line: rgba(74, 53, 32, 0.14);
-  --text: #22160d;
-  --muted: #6d5643;
-  --accent: #ab512f;
-  --accent-soft: #d5845f;
-  --shadow: 0 24px 80px rgba(70, 42, 17, 0.12);
+  --bg: #eef6ff;
+  --bg-strong: #d9eaff;
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --line: rgba(70, 116, 167, 0.16);
+  --text: #10233b;
+  --muted: #54718f;
+  --accent: #2e75d7;
+  --accent-soft: #70aaf6;
+  --shadow: 0 24px 80px rgba(47, 95, 148, 0.12);
   --radius: 28px;
   --content-width: 1180px;
 }
@@ -26,9 +26,9 @@ body {
   min-height: 100vh;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(231, 189, 134, 0.34), transparent 32%),
-    radial-gradient(circle at top right, rgba(153, 94, 45, 0.16), transparent 28%),
-    linear-gradient(180deg, #f8f1e6 0%, #f1e4d1 44%, #ead8c1 100%);
+    radial-gradient(circle at top left, rgba(120, 180, 255, 0.26), transparent 34%),
+    radial-gradient(circle at top right, rgba(188, 225, 255, 0.48), transparent 28%),
+    linear-gradient(180deg, #f7fbff 0%, #edf5ff 44%, #e4f0ff 100%);
   font-family: "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
 }
 
@@ -55,9 +55,9 @@ img {
   padding: 18px 22px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(248, 241, 230, 0.72);
+  background: rgba(247, 251, 255, 0.76);
   backdrop-filter: blur(18px);
-  box-shadow: 0 14px 40px rgba(77, 50, 22, 0.08);
+  box-shadow: 0 14px 40px rgba(53, 95, 146, 0.08);
 }
 
 .site-header__inner,
@@ -174,7 +174,7 @@ img {
 .lead,
 .article-body,
 .card__summary {
-  color: #432f20;
+  color: #294766;
   line-height: 1.8;
 }
 
@@ -205,12 +205,12 @@ img {
 
 .button {
   background: linear-gradient(135deg, var(--accent), var(--accent-soft));
-  color: #fff8f2;
+  color: #f6fbff;
 }
 
 .button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 32px rgba(171, 81, 47, 0.28);
+  box-shadow: 0 12px 32px rgba(46, 117, 215, 0.28);
 }
 
 .ghost-button,
@@ -252,7 +252,7 @@ img {
   position: relative;
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(211, 178, 135, 0.4), rgba(110, 78, 48, 0.16));
+  background: linear-gradient(135deg, rgba(171, 209, 255, 0.42), rgba(97, 152, 227, 0.14));
 }
 
 .card__image img {
@@ -315,7 +315,7 @@ img {
 .progressive-frame {
   position: relative;
   width: 100%;
-  background: rgba(206, 174, 137, 0.28);
+  background: rgba(163, 202, 245, 0.28);
   overflow: hidden;
 }
 
@@ -370,7 +370,7 @@ img {
 .article-body blockquote {
   margin: 1.2em 0;
   padding-left: 18px;
-  border-left: 3px solid rgba(171, 81, 47, 0.4);
+  border-left: 3px solid rgba(46, 117, 215, 0.34);
   color: var(--muted);
 }
 
@@ -381,7 +381,7 @@ img {
   max-width: none;
   margin: 0;
   padding: 24px;
-  background: rgba(16, 11, 8, 0.85);
+  background: rgba(11, 24, 38, 0.82);
 }
 
 .lightbox__chrome {
@@ -389,8 +389,8 @@ img {
   width: min(1320px, 100%);
   margin: 0 auto;
   padding: 18px;
-  background: rgba(32, 22, 15, 0.88);
-  color: #fdf1e6;
+  background: rgba(18, 36, 56, 0.9);
+  color: #f2f8ff;
 }
 
 .lightbox__topbar,
@@ -436,7 +436,7 @@ img {
 }
 
 .lightbox__hint {
-  color: rgba(253, 241, 230, 0.72);
+  color: rgba(242, 248, 255, 0.72);
 }
 
 .empty-state {

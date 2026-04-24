@@ -5,6 +5,7 @@ import sharp from "sharp";
 const contentRoot = path.join(process.cwd(), "content");
 const outputRoot = path.join(process.cwd(), "public", "generated");
 const manifestPath = path.join(outputRoot, "image-manifest.json");
+const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".svg"]);
 
 async function ensureCleanOutput() {
   await fs.rm(outputRoot, { recursive: true, force: true });
@@ -29,9 +30,27 @@ async function readDirectories(target) {
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 }
 
+async function listImageFiles(imagesDir) {
+  if (!(await directoryExists(imagesDir))) {
+    return [];
+  }
+
+  const entries = await fs.readdir(imagesDir, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && imageExtensions.has(path.extname(entry.name).toLowerCase()))
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b, "en"));
+}
+
 async function loadImagesMeta(baseDir, slug) {
-  const raw = await fs.readFile(path.join(contentRoot, baseDir, slug, "images.json"), "utf8");
-  return JSON.parse(raw);
+  const imagesPath = path.join(contentRoot, baseDir, slug, "images.json");
+  if (await fs.access(imagesPath).then(() => true).catch(() => false)) {
+    const raw = await fs.readFile(imagesPath, "utf8");
+    return JSON.parse(raw);
+  }
+
+  const files = await listImageFiles(path.join(contentRoot, baseDir, slug, "images"));
+  return files.map((file) => ({ file }));
 }
 
 async function generateVariants({ inputPath, outputDir, outputStem }) {
@@ -99,6 +118,10 @@ async function processCollection(baseDir) {
   for (const slug of slugs) {
     const imagesMeta = await loadImagesMeta(baseDir, slug);
     const sourceDir = path.join(contentRoot, baseDir, slug, "images");
+    if (!(await directoryExists(sourceDir))) {
+      continue;
+    }
+
     const outputDir = path.join(outputRoot, baseDir, slug);
     await fs.mkdir(outputDir, { recursive: true });
 
