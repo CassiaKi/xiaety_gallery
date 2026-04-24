@@ -105,3 +105,29 @@ npx wrangler pages deploy out --branch preview
 - Cloudflare 官方的静态 Next.js Pages 指南说明，`Next.js (Static HTML Export)` 的默认构建命令是 `npx next build`，输出目录是 `out`。
 - Cloudflare 官方的 `_headers` 文档说明，可以把 `_headers` 放在 `public/` 里，构建后会跟随静态资源一起部署。
 - Cloudflare 官方的 Wrangler 配置文档说明，Pages 项目可通过 `pages_build_output_dir` 在 `wrangler.toml` 中声明输出目录。
+
+## GitHub Pages 部署
+
+仓库已经包含自动部署工作流：
+
+- `.github/workflows/deploy-pages.yml`
+
+### 启用方式
+
+1. 打开 GitHub 仓库的 `Settings`。
+2. 进入 `Pages`。
+3. 在 `Build and deployment` 中把 `Source` 设为 `GitHub Actions`。
+4. 保持默认分支为 `main`，后续每次 `git push` 都会自动触发构建和部署。
+
+### 访问地址
+
+这个仓库是项目仓库，因此默认地址会是：
+
+```text
+https://cassiaki.github.io/xiaety_gallery/
+```
+
+项目里已经针对 GitHub Pages 做了路径适配：
+
+- 在 GitHub Actions 构建时自动启用 `basePath: "/xiaety_gallery"`
+- 静态资源会挂到 `/xiaety_gallery/` 前缀下
