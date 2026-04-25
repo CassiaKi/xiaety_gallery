@@ -432,7 +432,7 @@ img {
 
 .feed-section__head {
   position: sticky;
-  top: 118px;
+  top: 156px;
   z-index: 10;
   margin-bottom: 12px;
   pointer-events: none;
@@ -859,7 +859,7 @@ html[data-theme="night"] .image-masonry__frame {
   }
 
   .feed-section__head {
-    top: 96px;
+    top: 148px;
   }
 
   .panel,
