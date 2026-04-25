@@ -13,7 +13,6 @@ export default async function BlogIndexPage() {
       <div className="panel">
         <div className="section-label">Journal</div>
         <h1 className="page-title">博客</h1>
-        <p className="lead">文章页可挂接作品、封面和附图，但默认仍以压缩预览图呈现，不直接下载大图。</p>
       </div>
       <div className="grid-2" style={{ marginTop: 22 }}>
         {posts.map((post) => (
