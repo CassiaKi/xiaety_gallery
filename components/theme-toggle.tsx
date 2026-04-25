@@ -30,13 +30,15 @@ export function ThemeToggle() {
     setTheme(nextTheme);
   };
 
+  const nextThemeLabel = theme === "day" ? "夜间" : "日间";
+
   return (
     <button
       type="button"
       className="theme-toggle"
       onClick={toggleTheme}
-      aria-label={ready ? `切换到${theme === "day" ? "夜间" : "日间"}主题` : "切换主题"}
-      title={ready ? `切换到${theme === "day" ? "夜间" : "日间"}主题` : "切换主题"}
+      aria-label={ready ? `切换到${nextThemeLabel}主题` : "切换主题"}
+      title={ready ? `切换到${nextThemeLabel}主题` : "切换主题"}
     >
       <span className="theme-toggle__icon" aria-hidden="true">
         {theme === "day" ? "☀" : "☾"}

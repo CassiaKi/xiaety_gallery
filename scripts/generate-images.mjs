@@ -47,10 +47,12 @@ async function generateVariants({ inputPath, outputDir, outputStem }) {
   const metadata = await baseImage.metadata();
 
   const thumbPath = path.join(outputDir, `${outputStem}-thumb.webp`);
+  const viewerPath = path.join(outputDir, `${outputStem}-viewer.webp`);
   const previewPath = path.join(outputDir, `${outputStem}-preview.webp`);
   const fullPath = path.join(outputDir, `${outputStem}${path.extname(inputPath)}`);
 
   const thumbWidth = Math.min(metadata.width ?? 480, 480);
+  const viewerWidth = Math.min(metadata.width ?? 960, 960);
   const previewWidth = Math.min(metadata.width ?? 1600, 1600);
   const blurBuffer = await baseImage.resize(24).webp({ quality: 45 }).toBuffer();
   const blurDataURL = `data:image/webp;base64,${blurBuffer.toString("base64")}`;
@@ -61,17 +63,24 @@ async function generateVariants({ inputPath, outputDir, outputStem }) {
     .toFile(thumbPath);
 
   await sharp(inputPath, { failOn: "none" })
+    .resize({ width: viewerWidth, withoutEnlargement: true })
+    .webp({ quality: 74 })
+    .toFile(viewerPath);
+
+  await sharp(inputPath, { failOn: "none" })
     .resize({ width: previewWidth, withoutEnlargement: true })
     .webp({ quality: 82 })
     .toFile(previewPath);
 
   await fs.copyFile(inputPath, fullPath);
 
-  const [thumbStat, previewStat, fullStat, thumbMeta, previewMeta] = await Promise.all([
+  const [thumbStat, viewerStat, previewStat, fullStat, thumbMeta, viewerMeta, previewMeta] = await Promise.all([
     fs.stat(thumbPath),
+    fs.stat(viewerPath),
     fs.stat(previewPath),
     fs.stat(fullPath),
     sharp(thumbPath).metadata(),
+    sharp(viewerPath).metadata(),
     sharp(previewPath).metadata()
   ]);
 
@@ -84,6 +93,12 @@ async function generateVariants({ inputPath, outputDir, outputStem }) {
       width: thumbMeta.width ?? thumbWidth,
       height: thumbMeta.height ?? metadata.height ?? 0,
       bytes: thumbStat.size
+    },
+    viewer: {
+      src: `/${path.relative(path.join(process.cwd(), "public"), viewerPath).replaceAll("\\", "/")}`,
+      width: viewerMeta.width ?? viewerWidth,
+      height: viewerMeta.height ?? metadata.height ?? 0,
+      bytes: viewerStat.size
     },
     preview: {
       src: `/${path.relative(path.join(process.cwd(), "public"), previewPath).replaceAll("\\", "/")}`,

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { GalleryFeedImage } from "@/lib/content";
+import type { GalleryFeedImage, GalleryFeedSection } from "@/lib/content";
 
 type Props = {
-  images: GalleryFeedImage[];
+  sections: GalleryFeedSection[];
 };
 
-export function GalleryFeed({ images }: Props) {
+export function GalleryFeed({ sections }: Props) {
+  const images = useMemo(() => sections.flatMap((section) => section.images), [sections]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const activeImage = activeIndex === null ? null : images[activeIndex];
@@ -23,7 +24,7 @@ export function GalleryFeed({ images }: Props) {
 
     for (const image of candidates) {
       const preload = new Image();
-      preload.src = image.preview.src;
+      preload.src = image.viewer.src;
     }
   }, [activeIndex, images]);
 
@@ -60,34 +61,49 @@ export function GalleryFeed({ images }: Props) {
     return `${activeIndex + 1} / ${images.length}`;
   }, [activeIndex, images.length]);
 
+  let imageCursor = -1;
+
   return (
     <>
-      <section className="feed-shell">
-        <div className="image-masonry">
-          {images.map((image, index) => (
-            <button
-              key={image.id}
-              type="button"
-              className="image-masonry__item"
-              onClick={() => setActiveIndex(index)}
-              aria-label={`查看图片 ${image.alt}`}
-            >
-              <span
-                className="image-masonry__frame"
-                style={{ aspectRatio: `${image.thumb.width} / ${image.thumb.height}` }}
-              >
-                <img
-                  src={image.thumb.src}
-                  alt={image.alt}
-                  width={image.thumb.width}
-                  height={image.thumb.height}
-                  loading="lazy"
-                />
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
+      <div className="feed-shell">
+        {sections.map((section) => (
+          <section key={section.key} className="feed-section">
+            <div className="feed-section__head">
+              <span className="feed-section__label">{section.label}</span>
+            </div>
+
+            <div className="image-masonry">
+              {section.images.map((image) => {
+                imageCursor += 1;
+                const currentIndex = imageCursor;
+
+                return (
+                  <button
+                    key={image.id}
+                    type="button"
+                    className="image-masonry__item"
+                    onClick={() => setActiveIndex(currentIndex)}
+                    aria-label={`查看图片 ${image.alt}`}
+                  >
+                    <span
+                      className="image-masonry__frame"
+                      style={{ aspectRatio: `${image.thumb.width} / ${image.thumb.height}` }}
+                    >
+                      <img
+                        src={image.thumb.src}
+                        alt={image.alt}
+                        width={image.thumb.width}
+                        height={image.thumb.height}
+                        loading="lazy"
+                      />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
 
       {activeImage ? (
         <div
@@ -100,7 +116,7 @@ export function GalleryFeed({ images }: Props) {
           <div className="lightbox__chrome" onClick={(event) => event.stopPropagation()}>
             <div className="lightbox__topbar">
               <div>
-                <strong>Photo Viewer</strong>
+                <strong>{activeImage.groupLabel}</strong>
                 <div className="lightbox__hint">{currentLabel}</div>
               </div>
               <button type="button" className="ghost-button" onClick={() => setActiveIndex(null)}>
@@ -111,10 +127,10 @@ export function GalleryFeed({ images }: Props) {
             <div className="lightbox__viewer">
               <img
                 className="lightbox__display"
-                src={activeImage.preview.src}
+                src={activeImage.viewer.src}
                 alt={activeImage.alt}
-                width={activeImage.preview.width}
-                height={activeImage.preview.height}
+                width={activeImage.viewer.width}
+                height={activeImage.viewer.height}
               />
             </div>
 

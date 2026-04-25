@@ -1,8 +1,8 @@
 import { GalleryFeed } from "@/components/gallery-feed";
-import { getAllGalleryImages } from "@/lib/content";
+import { getAllGalleryImageSections } from "@/lib/content";
 
 export default async function HomePage() {
-  const images = await getAllGalleryImages();
+  const sections = await getAllGalleryImageSections();
 
-  return <GalleryFeed images={images} />;
+  return <GalleryFeed sections={sections} />;
 }

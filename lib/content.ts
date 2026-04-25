@@ -18,6 +18,7 @@ type ImageManifestItem = {
   height: number;
   blurDataURL: string;
   thumb: ImageManifestVariant;
+  viewer: ImageManifestVariant;
   preview: ImageManifestVariant;
   full: ImageManifestVariant;
 };
@@ -68,12 +69,21 @@ export type GalleryFeedImage = {
   id: string;
   alt: string;
   caption?: string;
+  group: string;
+  groupLabel: string;
   width: number;
   height: number;
   blurDataURL: string;
   thumb: ImageManifestVariant;
+  viewer: ImageManifestVariant;
   preview: ImageManifestVariant;
   full: ImageManifestVariant;
+};
+
+export type GalleryFeedSection = {
+  key: string;
+  label: string;
+  images: GalleryFeedImage[];
 };
 
 const contentRoot = path.join(process.cwd(), "content");
@@ -147,6 +157,10 @@ function getImageGroupName(fileName: string) {
   const baseName = fileName.replace(/\.[^.]+$/, "");
   const [groupName] = baseName.split("-");
   return groupName?.trim().toLowerCase() || "other";
+}
+
+function getGroupLabel(groupName: string) {
+  return startCase(groupName);
 }
 
 async function listPinnedMarkers(targetPath: string) {
@@ -330,14 +344,38 @@ export async function getAllGalleryImages() {
       id: image.id,
       alt: image.alt,
       caption: image.caption,
+      group: getImageGroupName(path.basename(image.id)),
+      groupLabel: getGroupLabel(getImageGroupName(path.basename(image.id))),
       width: image.width,
       height: image.height,
       blurDataURL: image.blurDataURL,
       thumb: image.thumb,
+      viewer: image.viewer,
       preview: image.preview,
       full: image.full
     })
   );
+}
+
+export async function getAllGalleryImageSections() {
+  const images = await getAllGalleryImages();
+  const sections = new Map<string, GalleryFeedSection>();
+
+  for (const image of images) {
+    const existing = sections.get(image.group);
+    if (existing) {
+      existing.images.push(image);
+      continue;
+    }
+
+    sections.set(image.group, {
+      key: image.group,
+      label: image.groupLabel,
+      images: [image]
+    });
+  }
+
+  return Array.from(sections.values());
 }
 
 async function loadPostImagesMeta(slug: string) {
