@@ -6,6 +6,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "predev": "node scripts/generate-images.mjs",
     "dev": "next dev",
     "import:legacy-gallery": "node scripts/import-legacy-gallery.mjs",
     "prebuild": "node scripts/generate-images.mjs",

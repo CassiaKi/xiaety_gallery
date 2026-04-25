@@ -28,23 +28,12 @@ type RawImageMeta = {
   caption?: string;
 };
 
-type GalleryFrontmatter = {
-  title?: string;
-  date?: string;
-  summary?: string;
-  tags?: string[];
-  series?: string;
-  cover?: string;
-  published?: boolean;
-};
-
 type PostFrontmatter = {
   title?: string;
   date?: string;
   summary?: string;
   tags?: string[];
   cover?: string;
-  relatedGalleries?: string[];
   published?: boolean;
 };
 
@@ -57,7 +46,6 @@ export type GalleryEntry = {
   dateLabel: string;
   summary: string;
   tags: string[];
-  series?: string;
   cover: GalleryImage;
   images: GalleryImage[];
   html: string;
@@ -74,6 +62,18 @@ export type PostEntry = {
   images: GalleryImage[];
   html: string;
   relatedGalleries: string[];
+};
+
+export type GalleryFeedImage = {
+  id: string;
+  alt: string;
+  caption?: string;
+  width: number;
+  height: number;
+  blurDataURL: string;
+  thumb: ImageManifestVariant;
+  preview: ImageManifestVariant;
+  full: ImageManifestVariant;
 };
 
 const contentRoot = path.join(process.cwd(), "content");
@@ -117,14 +117,27 @@ async function readManifest() {
   }
 }
 
-async function readDirectoryNames(targetPath: string) {
+async function listImageFiles(targetPath: string) {
   const exists = await pathExists(targetPath);
   if (!exists) {
     return [];
   }
 
   const entries = await fs.readdir(targetPath, { withFileTypes: true });
-  return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  const files = await Promise.all(
+    entries
+    .filter((entry) => entry.isFile() && imageExtensions.has(path.extname(entry.name).toLowerCase()))
+      .map(async (entry) => {
+        const filePath = path.join(targetPath, entry.name);
+        const stat = await fs.stat(filePath);
+        return {
+          name: entry.name,
+          mtimeMs: stat.mtimeMs
+        };
+      })
+  );
+
+  return files.sort((a, b) => b.mtimeMs - a.mtimeMs).map((file) => file.name);
 }
 
 async function readPostEntries() {
@@ -143,25 +156,104 @@ async function readPostEntries() {
     }));
 }
 
-async function listImageFiles(imagesDir: string) {
-  if (!(await pathExists(imagesDir))) {
+function formatDate(date: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  }).format(new Date(date));
+}
+
+async function readPhotosMeta() {
+  const photosDir = path.join(contentRoot, "photos");
+  const files = await listImageFiles(photosDir);
+  return files.map((file, index) => ({
+    file,
+    alt: `${startCase(file)} ${index + 1}`,
+    caption: undefined
+  }));
+}
+
+async function resolvePhotoImages(imagesMeta: RawImageMeta[]) {
+  const manifest = await readManifest();
+
+  return imagesMeta.map((image, index) => {
+    const key = `photos/${image.file}`;
+    const generated = manifest[key];
+    if (!generated) {
+      throw new Error(`Generated image metadata not found for ${key}`);
+    }
+
+    return {
+      ...generated,
+      alt: image.alt ?? `${startCase(image.file)} ${index + 1}`,
+      caption: image.caption
+    };
+  });
+}
+
+function assertPublished(flag: boolean | undefined) {
+  return flag !== false;
+}
+
+export async function getAllGalleries() {
+  const imagesMeta = await readPhotosMeta();
+  const images = await resolvePhotoImages(imagesMeta);
+
+  if (!images.length) {
     return [];
   }
 
-  const entries = await fs.readdir(imagesDir, { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isFile() && imageExtensions.has(path.extname(entry.name).toLowerCase()))
-    .map((entry) => entry.name)
-    .sort((a, b) => a.localeCompare(b, "en"));
+  const photosDir = path.join(contentRoot, "photos");
+  const stat = await fs.stat(photosDir);
+  const date = stat.mtime.toISOString().slice(0, 10);
+
+  const gallery: GalleryEntry = {
+    slug: "all",
+    title: "All Photos",
+    date,
+    dateLabel: formatDate(date),
+    summary: "",
+    tags: [],
+    cover: images[0],
+    images,
+    html: ""
+  };
+
+  return [gallery];
 }
 
-function chooseCover(files: string[]) {
-  return files.find((file) => /cover|cov/i.test(file)) ?? files[0];
+export async function getGalleryBySlug(slug: string) {
+  if (slug !== "all") {
+    return undefined;
+  }
+
+  const galleries = await getAllGalleries();
+  return galleries[0];
 }
 
-async function loadImagesMeta(baseDir: "galleries" | "posts", slug: string) {
-  const imagesDir = path.join(contentRoot, baseDir, slug, "images");
-  const imagesPath = path.join(contentRoot, baseDir, slug, "images.json");
+export async function getAllGalleryImages() {
+  const imagesMeta = await readPhotosMeta();
+  const images = await resolvePhotoImages(imagesMeta);
+
+  return images.map(
+    (image): GalleryFeedImage => ({
+      id: image.id,
+      alt: image.alt,
+      caption: image.caption,
+      width: image.width,
+      height: image.height,
+      blurDataURL: image.blurDataURL,
+      thumb: image.thumb,
+      preview: image.preview,
+      full: image.full
+    })
+  );
+}
+
+async function loadPostImagesMeta(slug: string) {
+  const imagesDir = path.join(contentRoot, "posts", slug, "images");
+  const imagesPath = path.join(contentRoot, "posts", slug, "images.json");
 
   if (await pathExists(imagesPath)) {
     const raw = await fs.readFile(imagesPath, "utf8");
@@ -176,28 +268,22 @@ async function loadImagesMeta(baseDir: "galleries" | "posts", slug: string) {
   }));
 }
 
-async function readGalleryContent(slug: string) {
-  const folderPath = path.join(contentRoot, "galleries", slug);
-  const markdownPath = path.join(folderPath, "index.md");
-  const folderStat = await fs.stat(folderPath);
+async function resolvePostImages(slug: string, imagesMeta: RawImageMeta[]) {
+  const manifest = await readManifest();
 
-  const frontmatter: GalleryFrontmatter = {};
-  let html = "";
+  return imagesMeta.map((image, index) => {
+    const key = `posts/${slug}/${image.file}`;
+    const generated = manifest[key];
+    if (!generated) {
+      throw new Error(`Generated image metadata not found for ${key}`);
+    }
 
-  if (await pathExists(markdownPath)) {
-    const markdownRaw = await fs.readFile(markdownPath, "utf8");
-    const parsed = matter(markdownRaw);
-    Object.assign(frontmatter, parsed.data as GalleryFrontmatter);
-    html = await renderMarkdown(parsed.content);
-  }
-
-  const imagesMeta = await loadImagesMeta("galleries", slug);
-  return {
-    frontmatter,
-    html,
-    imagesMeta,
-    defaultDate: folderStat.mtime.toISOString().slice(0, 10)
-  };
+    return {
+      ...generated,
+      alt: image.alt ?? `${startCase(slug)} ${index + 1}`,
+      caption: image.caption
+    };
+  });
 }
 
 async function readPostContent(slug: string, kind: "directory" | "file") {
@@ -224,90 +310,9 @@ async function readPostContent(slug: string, kind: "directory" | "file") {
   return {
     frontmatter: parsed.data as PostFrontmatter,
     html: await renderMarkdown(parsed.content),
-    imagesMeta: await loadImagesMeta("posts", slug),
+    imagesMeta: await loadPostImagesMeta(slug),
     defaultDate: folderStat.mtime.toISOString().slice(0, 10)
   };
-}
-
-function formatDate(date: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric"
-  }).format(new Date(date));
-}
-
-async function resolveImages(
-  collection: "galleries" | "posts",
-  slug: string,
-  imagesMeta: RawImageMeta[]
-) {
-  const manifest = await readManifest();
-
-  return imagesMeta.map((image, index) => {
-    const key = `${collection}/${slug}/${image.file}`;
-    const generated = manifest[key];
-    if (!generated) {
-      throw new Error(`Generated image metadata not found for ${key}`);
-    }
-
-    return {
-      ...generated,
-      alt: image.alt ?? `${startCase(slug)} ${index + 1}`,
-      caption: image.caption
-    };
-  });
-}
-
-function assertPublished(flag: boolean | undefined) {
-  return flag !== false;
-}
-
-export async function getAllGalleries() {
-  const slugs = await readDirectoryNames(path.join(contentRoot, "galleries"));
-  const galleries = await Promise.all(
-    slugs.map(async (slug): Promise<GalleryEntry | null> => {
-      const { frontmatter, html, imagesMeta, defaultDate } = await readGalleryContent(slug);
-      if (!assertPublished(frontmatter.published)) {
-        return null;
-      }
-
-      const images = await resolveImages("galleries", slug, imagesMeta);
-      if (!images.length) {
-        return null;
-      }
-
-      const coverFile = frontmatter.cover ?? chooseCover(imagesMeta.map((image) => image.file));
-      const cover = images.find((image) => image.id.endsWith(`/${coverFile}`));
-      if (!cover) {
-        throw new Error(`Cover image "${coverFile}" not found for gallery "${slug}"`);
-      }
-
-      const date = frontmatter.date ?? defaultDate;
-
-      return {
-        slug,
-        title: frontmatter.title ?? startCase(slug),
-        date,
-        dateLabel: formatDate(date),
-        summary: frontmatter.summary ?? "一组新导入的图片，等待补充更完整的标题与说明。",
-        tags: frontmatter.tags ?? [slug],
-        series: frontmatter.series ?? "图像归档",
-        cover,
-        images,
-        html
-      };
-    })
-  );
-
-  return galleries
-    .filter((gallery): gallery is GalleryEntry => Boolean(gallery))
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
-}
-
-export async function getGalleryBySlug(slug: string) {
-  const galleries = await getAllGalleries();
-  return galleries.find((gallery) => gallery.slug === slug);
 }
 
 export async function getAllPosts() {
@@ -319,7 +324,7 @@ export async function getAllPosts() {
         return null;
       }
 
-      const images = kind === "directory" ? await resolveImages("posts", slug, imagesMeta) : [];
+      const images = kind === "directory" ? await resolvePostImages(slug, imagesMeta) : [];
       const cover = frontmatter.cover
         ? images.find((image) => image.id.endsWith(`/${frontmatter.cover}`))
         : images[0];
@@ -335,7 +340,7 @@ export async function getAllPosts() {
         cover,
         images,
         html,
-        relatedGalleries: frontmatter.relatedGalleries ?? []
+        relatedGalleries: []
       };
     })
   );
@@ -349,6 +354,6 @@ export async function getPostBySlug(slug: string) {
 }
 
 export async function getAllTags() {
-  const [galleries, posts] = await Promise.all([getAllGalleries(), getAllPosts()]);
-  return Array.from(new Set([...galleries.flatMap((item) => item.tags), ...posts.flatMap((item) => item.tags)])).sort();
+  const posts = await getAllPosts();
+  return Array.from(new Set(posts.flatMap((item) => item.tags))).sort();
 }

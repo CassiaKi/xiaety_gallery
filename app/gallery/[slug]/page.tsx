@@ -33,20 +33,21 @@ export default async function GalleryDetailPage({ params }: Props) {
   return (
     <article className="article-shell">
       <div className="detail-head">
-        <div className="section-label">{gallery.series ?? "Gallery"}</div>
+        <div className="section-label">Gallery</div>
         <div className="article-meta">{gallery.dateLabel}</div>
       </div>
       <h1 className="article-title">{gallery.title}</h1>
-      <p className="lead">{gallery.summary}</p>
-      <div className="tag-row">
-        {gallery.tags.map((tag) => (
-          <TagLink key={tag} tag={tag} />
-        ))}
-      </div>
-      <div
-        className="article-body"
-        dangerouslySetInnerHTML={{ __html: gallery.html }}
-      />
+      {gallery.summary ? <p className="lead">{gallery.summary}</p> : null}
+      {gallery.tags.length ? (
+        <div className="tag-row">
+          {gallery.tags.map((tag) => (
+            <TagLink key={tag} tag={tag} />
+          ))}
+        </div>
+      ) : null}
+      {gallery.html ? (
+        <div className="article-body" dangerouslySetInnerHTML={{ __html: gallery.html }} />
+      ) : null}
       <LightboxGallery images={gallery.images} title={gallery.title} />
     </article>
   );

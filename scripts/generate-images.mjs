@@ -42,17 +42,6 @@ async function listImageFiles(imagesDir) {
     .sort((a, b) => a.localeCompare(b, "en"));
 }
 
-async function loadImagesMeta(baseDir, slug) {
-  const imagesPath = path.join(contentRoot, baseDir, slug, "images.json");
-  if (await fs.access(imagesPath).then(() => true).catch(() => false)) {
-    const raw = await fs.readFile(imagesPath, "utf8");
-    return JSON.parse(raw);
-  }
-
-  const files = await listImageFiles(path.join(contentRoot, baseDir, slug, "images"));
-  return files.map((file) => ({ file }));
-}
-
 async function generateVariants({ inputPath, outputDir, outputStem }) {
   const baseImage = sharp(inputPath, { failOn: "none" });
   const metadata = await baseImage.metadata();
@@ -111,18 +100,57 @@ async function generateVariants({ inputPath, outputDir, outputStem }) {
   };
 }
 
-async function processCollection(baseDir) {
+async function processPhotos() {
+  const sourceDir = path.join(contentRoot, "photos");
+  const outputDir = path.join(outputRoot, "photos");
+  const files = await listImageFiles(sourceDir);
+
+  if (!files.length) {
+    return {};
+  }
+
+  await fs.mkdir(outputDir, { recursive: true });
   const manifestEntries = {};
-  const slugs = await readDirectories(path.join(contentRoot, baseDir));
+
+  for (const file of files) {
+    const inputPath = path.join(sourceDir, file);
+    const outputStem = path.parse(file).name;
+    const variants = await generateVariants({ inputPath, outputDir, outputStem });
+
+    manifestEntries[`photos/${file}`] = {
+      id: `photos/${file}`,
+      alt: file,
+      caption: undefined,
+      ...variants
+    };
+  }
+
+  return manifestEntries;
+}
+
+async function loadPostImagesMeta(slug) {
+  const imagesPath = path.join(contentRoot, "posts", slug, "images.json");
+  if (await fs.access(imagesPath).then(() => true).catch(() => false)) {
+    const raw = await fs.readFile(imagesPath, "utf8");
+    return JSON.parse(raw);
+  }
+
+  const files = await listImageFiles(path.join(contentRoot, "posts", slug, "images"));
+  return files.map((file) => ({ file }));
+}
+
+async function processPosts() {
+  const manifestEntries = {};
+  const slugs = await readDirectories(path.join(contentRoot, "posts"));
 
   for (const slug of slugs) {
-    const imagesMeta = await loadImagesMeta(baseDir, slug);
-    const sourceDir = path.join(contentRoot, baseDir, slug, "images");
+    const imagesMeta = await loadPostImagesMeta(slug);
+    const sourceDir = path.join(contentRoot, "posts", slug, "images");
     if (!(await directoryExists(sourceDir))) {
       continue;
     }
 
-    const outputDir = path.join(outputRoot, baseDir, slug);
+    const outputDir = path.join(outputRoot, "posts", slug);
     await fs.mkdir(outputDir, { recursive: true });
 
     for (const image of imagesMeta) {
@@ -130,8 +158,8 @@ async function processCollection(baseDir) {
       const outputStem = path.parse(image.file).name;
       const variants = await generateVariants({ inputPath, outputDir, outputStem });
 
-      manifestEntries[`${baseDir}/${slug}/${image.file}`] = {
-        id: `${baseDir}/${slug}/${image.file}`,
+      manifestEntries[`posts/${slug}/${image.file}`] = {
+        id: `posts/${slug}/${image.file}`,
         alt: image.alt,
         caption: image.caption,
         ...variants
@@ -144,12 +172,9 @@ async function processCollection(baseDir) {
 
 async function main() {
   await ensureCleanOutput();
-  const [galleries, posts] = await Promise.all([
-    processCollection("galleries"),
-    processCollection("posts")
-  ]);
+  const [photos, posts] = await Promise.all([processPhotos(), processPosts()]);
 
-  await fs.writeFile(manifestPath, JSON.stringify({ ...galleries, ...posts }, null, 2), "utf8");
+  await fs.writeFile(manifestPath, JSON.stringify({ ...photos, ...posts }, null, 2), "utf8");
   console.log(`Generated image manifest at ${manifestPath}`);
 }
 
