@@ -9,7 +9,6 @@ type Props = {
 
 export function GalleryFeed({ images }: Props) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [fullReady, setFullReady] = useState(false);
 
   const activeImage = activeIndex === null ? null : images[activeIndex];
 
@@ -24,7 +23,7 @@ export function GalleryFeed({ images }: Props) {
 
     for (const image of candidates) {
       const preload = new Image();
-      preload.src = image.full.src;
+      preload.src = image.preview.src;
     }
   }, [activeIndex, images]);
 
@@ -39,12 +38,10 @@ export function GalleryFeed({ images }: Props) {
       }
 
       if (event.key === "ArrowRight") {
-        setFullReady(false);
         setActiveIndex((current) => (current === null ? current : (current + 1) % images.length));
       }
 
       if (event.key === "ArrowLeft") {
-        setFullReady(false);
         setActiveIndex((current) =>
           current === null ? current : (current - 1 + images.length) % images.length
         );
@@ -72,10 +69,7 @@ export function GalleryFeed({ images }: Props) {
               key={image.id}
               type="button"
               className="image-masonry__item"
-              onClick={() => {
-                setActiveIndex(index);
-                setFullReady(false);
-              }}
+              onClick={() => setActiveIndex(index)}
               aria-label={`查看图片 ${image.alt}`}
             >
               <span
@@ -116,20 +110,11 @@ export function GalleryFeed({ images }: Props) {
 
             <div className="lightbox__viewer">
               <img
-                className="lightbox__preview"
+                className="lightbox__display"
                 src={activeImage.preview.src}
-                alt=""
-                aria-hidden="true"
+                alt={activeImage.alt}
                 width={activeImage.preview.width}
                 height={activeImage.preview.height}
-              />
-              <img
-                className={`lightbox__full${fullReady ? " is-ready" : ""}`}
-                src={activeImage.full.src}
-                alt={activeImage.alt}
-                width={activeImage.width}
-                height={activeImage.height}
-                onLoad={() => setFullReady(true)}
               />
             </div>
 
@@ -137,12 +122,11 @@ export function GalleryFeed({ images }: Props) {
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => {
-                  setFullReady(false);
+                onClick={() =>
                   setActiveIndex((current) =>
                     current === null ? 0 : (current - 1 + images.length) % images.length
-                  );
-                }}
+                  )
+                }
               >
                 上一张
               </button>
@@ -150,23 +134,17 @@ export function GalleryFeed({ images }: Props) {
               <div className="lightbox__hint">{activeImage.alt}</div>
 
               <div className="lightbox__actions">
-                <a
-                  className="ghost-button"
-                  href={activeImage.full.src}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  打开原图
+                <a className="ghost-button" href={activeImage.full.src} download>
+                  下载原图
                 </a>
                 <button
                   type="button"
                   className="button"
-                  onClick={() => {
-                    setFullReady(false);
+                  onClick={() =>
                     setActiveIndex((current) =>
                       current === null ? 0 : (current + 1) % images.length
-                    );
-                  }}
+                    )
+                  }
                 >
                   下一张
                 </button>

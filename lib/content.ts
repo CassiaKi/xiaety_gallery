@@ -79,6 +79,9 @@ export type GalleryFeedImage = {
 const contentRoot = path.join(process.cwd(), "content");
 const generatedManifestPath = path.join(process.cwd(), "public", "generated", "image-manifest.json");
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".svg"]);
+const photosRoot = path.join(contentRoot, "photos");
+const pinnedRoot = path.join(contentRoot, "pinned");
+const pinExtension = ".pin";
 
 let manifestCache: Record<string, ImageManifestItem> | null = null;
 
@@ -140,6 +143,94 @@ async function listImageFiles(targetPath: string) {
   return files.sort((a, b) => b.mtimeMs - a.mtimeMs).map((file) => file.name);
 }
 
+function getImageGroupName(fileName: string) {
+  const baseName = fileName.replace(/\.[^.]+$/, "");
+  const [groupName] = baseName.split("-");
+  return groupName?.trim().toLowerCase() || "other";
+}
+
+async function listPinnedMarkers(targetPath: string) {
+  const exists = await pathExists(targetPath);
+  if (!exists) {
+    return [];
+  }
+
+  const entries = await fs.readdir(targetPath, { withFileTypes: true });
+  const markers = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && entry.name.endsWith(pinExtension))
+      .map(async (entry) => {
+        const filePath = path.join(targetPath, entry.name);
+        const stat = await fs.stat(filePath);
+        return {
+          name: entry.name.slice(0, -pinExtension.length),
+          mtimeMs: stat.mtimeMs
+        };
+      })
+  );
+
+  return markers.sort((a, b) => b.mtimeMs - a.mtimeMs).map((marker) => marker.name);
+}
+
+async function listPhotoFiles(targetPath: string) {
+  const exists = await pathExists(targetPath);
+  if (!exists) {
+    return [];
+  }
+
+  const pinnedFiles = await listPinnedMarkers(pinnedRoot);
+  const pinnedOrder = new Map(
+    pinnedFiles.map((fileName, index) => [fileName, index])
+  );
+
+  const entries = await fs.readdir(targetPath, { withFileTypes: true });
+  const files = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && imageExtensions.has(path.extname(entry.name).toLowerCase()))
+      .map(async (entry) => {
+        const filePath = path.join(targetPath, entry.name);
+        const stat = await fs.stat(filePath);
+        return {
+          name: entry.name,
+          group: getImageGroupName(entry.name),
+          mtimeMs: stat.mtimeMs
+        };
+      })
+  );
+
+  return files
+    .sort((a, b) => {
+      const aPinned = pinnedOrder.get(a.name);
+      const bPinned = pinnedOrder.get(b.name);
+
+      if (aPinned !== undefined || bPinned !== undefined) {
+        if (aPinned === undefined) {
+          return 1;
+        }
+
+        if (bPinned === undefined) {
+          return -1;
+        }
+
+        if (aPinned !== bPinned) {
+          return aPinned - bPinned;
+        }
+      }
+
+      const groupCompare = a.group.localeCompare(b.group, "en");
+      if (groupCompare !== 0) {
+        return groupCompare;
+      }
+
+      if (a.mtimeMs !== b.mtimeMs) {
+        return b.mtimeMs - a.mtimeMs;
+      }
+
+      return a.name.localeCompare(b.name, "en");
+    })
+    .map((file) => file.name);
+}
+
 async function readPostEntries() {
   const postsRoot = path.join(contentRoot, "posts");
   const exists = await pathExists(postsRoot);
@@ -165,8 +256,7 @@ function formatDate(date: string) {
 }
 
 async function readPhotosMeta() {
-  const photosDir = path.join(contentRoot, "photos");
-  const files = await listImageFiles(photosDir);
+  const files = await listPhotoFiles(photosRoot);
   return files.map((file, index) => ({
     file,
     alt: `${startCase(file)} ${index + 1}`,
@@ -204,8 +294,7 @@ export async function getAllGalleries() {
     return [];
   }
 
-  const photosDir = path.join(contentRoot, "photos");
-  const stat = await fs.stat(photosDir);
+  const stat = await fs.stat(photosRoot);
   const date = stat.mtime.toISOString().slice(0, 10);
 
   const gallery: GalleryEntry = {

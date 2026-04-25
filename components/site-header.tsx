@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
-  { href: "/", label: "首页" },
+  { href: "/", label: "图库" },
   { href: "/blog", label: "博客" },
   { href: "/about", label: "关于" }
 ];

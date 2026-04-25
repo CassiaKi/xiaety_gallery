@@ -612,12 +612,17 @@ img {
   margin: 18px 0;
 }
 
+.lightbox__display,
 .lightbox__preview,
 .lightbox__full {
   max-height: 74vh;
   width: auto;
   max-width: 100%;
   border-radius: 20px;
+}
+
+.lightbox__display {
+  object-fit: contain;
 }
 
 .lightbox__preview {
