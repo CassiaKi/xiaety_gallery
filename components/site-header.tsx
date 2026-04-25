@@ -14,6 +14,7 @@ export function SiteHeader() {
         <div className="site-header__inner">
           <Link href="/" className="site-brand">
             <span className="site-brand__title">Xiaety Gallery</span>
+            <span className="site-brand__quote">高山仰止，景行行止</span>
           </Link>
 
           <nav className="site-nav" aria-label="主导航">
@@ -28,8 +29,6 @@ export function SiteHeader() {
           </nav>
         </div>
       </header>
-
-      <p className="site-header__quote">高山仰止，景行行止</p>
     </div>
   );
 }
