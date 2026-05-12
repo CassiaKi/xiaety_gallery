@@ -1,12 +1,18 @@
-import { GalleryFeed } from "@/components/gallery-feed";
-import { getAllGalleryImageSections } from "@/lib/content";
+import { GalleryCard } from "@/components/gallery-card";
+import { getAllGalleries } from "@/lib/content";
 
 export const metadata = {
   title: "图库"
 };
 
 export default async function GalleryIndexPage() {
-  const sections = await getAllGalleryImageSections();
+  const galleries = await getAllGalleries();
 
-  return <GalleryFeed sections={sections} />;
+  return (
+    <section className="album-grid">
+      {galleries.map((gallery) => (
+        <GalleryCard key={gallery.slug} gallery={gallery} />
+      ))}
+    </section>
+  );
 }

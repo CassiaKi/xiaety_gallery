@@ -47,6 +47,7 @@ export type GalleryEntry = {
   dateLabel: string;
   summary: string;
   tags: string[];
+  count: number;
   cover: GalleryImage;
   images: GalleryImage[];
   html: string;
@@ -300,39 +301,69 @@ function assertPublished(flag: boolean | undefined) {
   return flag !== false;
 }
 
-export async function getAllGalleries() {
-  const imagesMeta = await readPhotosMeta();
-  const images = await resolvePhotoImages(imagesMeta);
+async function readGroupedPhotoMeta() {
+  const files = await listPhotoFiles(photosRoot);
+  const grouped = new Map<string, RawImageMeta[]>();
 
-  if (!images.length) {
-    return [];
+  for (const file of files) {
+    const group = getImageGroupName(file);
+    const list = grouped.get(group) ?? [];
+    list.push({
+      file,
+      alt: startCase(file),
+      caption: undefined
+    });
+    grouped.set(group, list);
   }
 
-  const stat = await fs.stat(photosRoot);
-  const date = stat.mtime.toISOString().slice(0, 10);
+  for (const [group, items] of grouped) {
+    grouped.set(
+      group,
+      [...items].sort((a, b) => a.file.localeCompare(b.file, "en"))
+    );
+  }
 
-  const gallery: GalleryEntry = {
-    slug: "all",
-    title: "All Photos",
-    date,
-    dateLabel: formatDate(date),
-    summary: "",
-    tags: [],
-    cover: images[0],
-    images,
-    html: ""
-  };
+  return Array.from(grouped.entries())
+    .sort((a, b) => a[0].localeCompare(b[0], "en"))
+    .map(([group, imagesMeta]) => ({ group, imagesMeta }));
+}
 
-  return [gallery];
+export async function getAllGalleries() {
+  const groupedMeta = await readGroupedPhotoMeta();
+
+  return Promise.all(
+    groupedMeta.map(async ({ group, imagesMeta }) => {
+      const images = await resolvePhotoImages(imagesMeta);
+      const coverFile = [...imagesMeta]
+        .map((item) => item.file)
+        .sort((a, b) => a.localeCompare(b, "en"))[0];
+      const cover = images.find((image) => image.id.endsWith(`/${coverFile}`)) ?? images[0];
+
+      const fileStats = await Promise.all(
+        imagesMeta.map((image) => fs.stat(path.join(photosRoot, image.file)))
+      );
+      const latestMtime = Math.max(...fileStats.map((stat) => stat.mtimeMs));
+      const date = new Date(latestMtime).toISOString().slice(0, 10);
+
+      return {
+        slug: group,
+        title: getGroupLabel(group),
+        date,
+        dateLabel: formatDate(date),
+        summary: "",
+        tags: [group],
+        count: images.length,
+        cover,
+        images,
+        html: ""
+      } satisfies GalleryEntry;
+    })
+  );
 }
 
 export async function getGalleryBySlug(slug: string) {
-  if (slug !== "all") {
-    return undefined;
-  }
-
   const galleries = await getAllGalleries();
-  return galleries[0];
+  return galleries.find((gallery) => gallery.slug === slug);
 }
 
 export async function getAllGalleryImages() {

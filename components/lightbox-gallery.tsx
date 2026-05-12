@@ -67,42 +67,26 @@ export function LightboxGallery({ images, title }: Props) {
   return (
     <>
       <section className="page-section">
-        <div className="section-head">
-          <div>
-            <div className="section-label">Preview Images</div>
-            <h2>{title}</h2>
-          </div>
-          <div className="article-meta">详情页默认仅加载 preview</div>
-        </div>
-
-        <div className="photo-grid">
+        <div className="detail-masonry">
           {images.map((image, index) => (
-            <article className="photo-panel" key={image.id}>
-              <button
-                type="button"
-                className="photo-panel__button"
-                onClick={() => {
-                  setActiveIndex(index);
-                  setFullReady(false);
-                }}
-                aria-label={`查看 ${image.alt} 原图`}
-              >
-                <span className="progressive-frame">
-                  <img
-                    src={image.preview.src}
-                    alt={image.alt}
-                    width={image.preview.width}
-                    height={image.preview.height}
-                    loading={index === 0 ? "eager" : "lazy"}
-                  />
-                </span>
-              </button>
-
-              <div className="photo-panel__meta">
-                <p className="photo-panel__title">{image.caption ?? image.alt}</p>
-                <div className="article-meta">点击查看原图</div>
-              </div>
-            </article>
+            <button
+              key={image.id}
+              type="button"
+              className="detail-masonry__item"
+              onClick={() => {
+                setActiveIndex(index);
+                setFullReady(false);
+              }}
+              aria-label={`查看 ${image.alt} 原图`}
+            >
+              <img
+                src={image.preview.src}
+                alt={image.alt}
+                width={image.preview.width}
+                height={image.preview.height}
+                loading={index === 0 ? "eager" : "lazy"}
+              />
+            </button>
           ))}
         </div>
       </section>
